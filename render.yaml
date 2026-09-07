@@ -15,7 +15,7 @@ services:
       - key: JWT_EXPIRATION_HOURS
         value: "24"
       - key: CORS_ORIGINS
-        value: "https://signal-clone.vercel.app"
+        value: "https://signal-clone-sable.vercel.app,http://localhost:3000"
       - key: MOCK_OTP
         value: "123456"
       - key: PYTHON_VERSION
