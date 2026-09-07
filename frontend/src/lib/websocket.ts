@@ -14,6 +14,9 @@ class WebSocketClient {
   private isExplicitlyClosed = false;
 
   public connect(userId: number): void {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN && this.userId === userId) {
+      return; // Already actively connected
+    }
     this.userId = userId;
     this.isExplicitlyClosed = false;
     this.cleanup();
@@ -78,11 +81,11 @@ class WebSocketClient {
   }
 
   private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts || !this.userId) {
+    if (!this.userId || this.isExplicitlyClosed) {
       return;
     }
 
-    const backoff = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 10000);
+    const backoff = Math.min(1000 * Math.pow(1.3, this.reconnectAttempts), 5000);
     this.reconnectAttempts++;
 
     this.reconnectTimeout = setTimeout(() => {
@@ -98,7 +101,7 @@ class WebSocketClient {
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(JSON.stringify({ type: "ping" }));
       }
-    }, 30000);
+    }, 15000); // 15 seconds keeps cloud proxies (Render) alive
   }
 
   private stopHeartbeat(): void {

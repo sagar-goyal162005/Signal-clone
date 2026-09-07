@@ -100,6 +100,9 @@ export interface WebSocketEvent {
   type:
     | "message"
     | "message_sent"
+    | "message_updated"
+    | "message_deleted"
+    | "conversation_created"
     | "typing_start"
     | "typing_stop"
     | "message_read"
@@ -112,6 +115,7 @@ export interface WebSocketEvent {
   username?: string;
   display_name?: string;
   message?: Message;
+  message_id?: number;
   message_ids?: number[];
   is_online?: boolean;
   last_seen?: string;

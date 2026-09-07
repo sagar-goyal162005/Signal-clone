@@ -76,6 +76,18 @@ async def handle_websocket_event(
             },
         )
 
+        # Stop typing indicator for sender
+        await manager.broadcast_to_conversation(
+            db=db,
+            conversation_id=conversation_id,
+            data={
+                "type": "typing_stop",
+                "conversation_id": conversation_id,
+                "user_id": user_id,
+            },
+            exclude_user_id=user_id,
+        )
+
     # Typing start indicator
     elif event_type == "typing_start":
         conversation_id = data.get("conversation_id")

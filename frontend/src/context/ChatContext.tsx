@@ -126,6 +126,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const convId = msg.conversation_id;
         const currentActive = activeConvRef.current;
 
+        // Clear typing indicator for message sender
+        setTypingByConv((prev) => {
+          const current = prev[convId] || [];
+          return {
+            ...prev,
+            [convId]: current.filter((t) => t.userId !== msg.sender_id),
+          };
+        });
+
         // Add to messages cache
         setMessagesByConv((prev) => {
           const currentList = prev[convId] || [];
@@ -142,7 +151,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setConversations((prev) => {
           const existingIndex = prev.findIndex((c) => c.id === convId);
           if (existingIndex === -1) {
-            // New conversation created by someone else
+            // New conversation received, refresh list immediately
             refreshConversations();
             return prev;
           }
@@ -193,6 +202,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ],
           };
         });
+
+        // Auto-clear typing indicator after 3.5s in case stop event is lost
+        setTimeout(() => {
+          setTypingByConv((prev) => {
+            const current = prev[conversation_id] || [];
+            return {
+              ...prev,
+              [conversation_id]: current.filter((t) => t.userId !== user_id),
+            };
+          });
+        }, 3500);
       })
     );
 
@@ -250,6 +270,43 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ),
           }))
         );
+      })
+    );
+
+    // 6. Conversation created in real-time
+    unsubs.push(
+      wsClient.on("conversation_created", () => {
+        refreshConversations();
+      })
+    );
+
+    // 7. Message edited in real-time
+    unsubs.push(
+      wsClient.on("message_updated", (event: WebSocketEvent) => {
+        const updated = event.message;
+        if (!updated) return;
+        setMessagesByConv((prev) => {
+          const list = prev[updated.conversation_id] || [];
+          return {
+            ...prev,
+            [updated.conversation_id]: list.map((m) => (m.id === updated.id ? updated : m)),
+          };
+        });
+      })
+    );
+
+    // 8. Message deleted in real-time
+    unsubs.push(
+      wsClient.on("message_deleted", (event: WebSocketEvent) => {
+        const { conversation_id, message_id } = event;
+        if (!conversation_id || !message_id) return;
+        setMessagesByConv((prev) => {
+          const list = prev[conversation_id] || [];
+          return {
+            ...prev,
+            [conversation_id]: list.filter((m) => m.id !== message_id),
+          };
+        });
       })
     );
 

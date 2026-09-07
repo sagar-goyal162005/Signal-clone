@@ -16,6 +16,8 @@ from app.services.conversation_service import (
     get_conversation_by_id,
 )
 
+from app.websocket.manager import manager
+
 router = APIRouter()
 
 
@@ -30,7 +32,7 @@ def list_conversations(
 
 
 @router.post("", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
-def create_conversation(
+async def create_conversation(
     request: ConversationCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -57,6 +59,20 @@ def create_conversation(
         result = get_conversation_by_id(db, conv.id, current_user.id)
         if not result:
             raise HTTPException(status_code=500, detail="Failed to retrieve conversation")
+
+        # Broadcast conversation_created event to other members
+        for member in conv.members:
+            if member.user_id != current_user.id:
+                member_conv = get_conversation_by_id(db, conv.id, member.user_id)
+                if member_conv:
+                    await manager.send_personal_message(
+                        {
+                            "type": "conversation_created",
+                            "conversation": member_conv,
+                        },
+                        member.user_id,
+                    )
+
         return result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

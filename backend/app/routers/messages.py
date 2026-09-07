@@ -16,6 +16,7 @@ from app.services.message_service import (
     mark_messages_read,
 )
 from app.services.conversation_service import is_conversation_member
+from app.websocket.manager import manager
 
 router = APIRouter()
 
@@ -40,7 +41,7 @@ def get_messages(
 
 
 @router.post("/conversations/{conversation_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def send_message(
+async def send_message(
     conversation_id: int,
     request: MessageCreate,
     current_user: User = Depends(get_current_user),
@@ -57,11 +58,35 @@ def send_message(
         db, conversation_id, current_user.id,
         request.content, request.message_type, request.reply_to_id,
     )
+
+    # Broadcast in real time via WebSocket to all members
+    await manager.broadcast_to_conversation(
+        db=db,
+        conversation_id=conversation_id,
+        data={
+            "type": "message",
+            "conversation_id": conversation_id,
+            "message": message,
+        },
+    )
+
+    # Stop typing indicator for sender
+    await manager.broadcast_to_conversation(
+        db=db,
+        conversation_id=conversation_id,
+        data={
+            "type": "typing_stop",
+            "conversation_id": conversation_id,
+            "user_id": current_user.id,
+        },
+        exclude_user_id=current_user.id,
+    )
+
     return message
 
 
 @router.patch("/messages/{message_id}", response_model=MessageResponse)
-def edit_message(
+async def edit_message(
     message_id: int,
     request: MessageUpdate,
     current_user: User = Depends(get_current_user),
@@ -70,27 +95,45 @@ def edit_message(
     """Edit a message. Only the sender can edit."""
     try:
         message = update_message(db, message_id, current_user.id, request.content)
+        await manager.broadcast_to_conversation(
+            db=db,
+            conversation_id=message["conversation_id"],
+            data={
+                "type": "message_updated",
+                "conversation_id": message["conversation_id"],
+                "message": message,
+            },
+        )
         return message
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @router.delete("/messages/{message_id}", response_model=MsgResp)
-def remove_message(
+async def remove_message(
     message_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Soft delete a message. Only the sender can delete."""
     try:
-        delete_message(db, message_id, current_user.id)
+        conversation_id = delete_message(db, message_id, current_user.id)
+        await manager.broadcast_to_conversation(
+            db=db,
+            conversation_id=conversation_id,
+            data={
+                "type": "message_deleted",
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+            },
+        )
         return MsgResp(message="Message deleted")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @router.post("/conversations/{conversation_id}/read", response_model=MsgResp)
-def mark_read(
+async def mark_read(
     conversation_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -103,4 +146,17 @@ def mark_read(
         )
 
     affected_ids = mark_messages_read(db, conversation_id, current_user.id)
+    if affected_ids:
+        from datetime import datetime, timezone
+        await manager.broadcast_to_conversation(
+            db=db,
+            conversation_id=conversation_id,
+            data={
+                "type": "message_read",
+                "conversation_id": conversation_id,
+                "user_id": current_user.id,
+                "message_ids": affected_ids,
+                "read_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
     return MsgResp(message=f"Marked {len(affected_ids)} messages as read")
