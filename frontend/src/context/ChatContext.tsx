@@ -310,6 +310,36 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
+    // 9. Group updated in real-time
+    unsubs.push(
+      wsClient.on("group_updated", (event: WebSocketEvent) => {
+        const { group } = event;
+        if (!group) return;
+        refreshConversations();
+        setActiveConversation((prev) => {
+          if (prev && prev.id === group.id) {
+            return {
+              ...prev,
+              name: group.name,
+              avatar_url: group.avatar_url,
+              members: group.members,
+            };
+          }
+          return prev;
+        });
+      })
+    );
+
+    // 10. Removed from conversation / deleted
+    unsubs.push(
+      wsClient.on("conversation_deleted", (event: WebSocketEvent) => {
+        const { conversation_id } = event;
+        if (!conversation_id) return;
+        setConversations((prev) => prev.filter((c) => c.id !== conversation_id));
+        setActiveConversation((prev) => (prev?.id === conversation_id ? null : prev));
+      })
+    );
+
     return () => {
       unsubs.forEach((u) => u());
     };

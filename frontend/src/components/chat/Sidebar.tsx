@@ -14,6 +14,7 @@ import {
   LogOut,
   User as UserIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   onOpenNewChat: () => void;
@@ -37,6 +38,10 @@ export function Sidebar({
   } = useChat();
 
   const [showMenu, setShowMenu] = useState(false);
+  const [filter, setFilter] = useState<"ALL" | "UNREAD" | "GROUPS">("ALL");
+
+  const unreadTotal = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
+  const groupsCount = conversations.filter((c) => c.type === "GROUP").length;
 
   // Map of which conversations have typing users
   const typingMap: Record<number, boolean> = {};
@@ -147,11 +152,78 @@ export function Sidebar({
         </div>
       </div>
 
+      {/* Filter Tabs: All Chats, Unread, Groups (Matching design) */}
+      <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-0 select-none">
+        <button
+          type="button"
+          onClick={() => setFilter("ALL")}
+          className={cn(
+            "px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+            filter === "ALL"
+              ? "bg-[#2C6BED] text-white shadow-xs"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          )}
+        >
+          All Chats
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilter("UNREAD")}
+          className={cn(
+            "px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5",
+            filter === "UNREAD"
+              ? "bg-[#2C6BED] text-white shadow-xs"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          )}
+        >
+          <span>Unread</span>
+          {unreadTotal > 0 && (
+            <span
+              className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                filter === "UNREAD"
+                  ? "bg-white text-[#2C6BED]"
+                  : "bg-[#2C6BED] text-white"
+              )}
+            >
+              {unreadTotal}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilter("GROUPS")}
+          className={cn(
+            "px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5",
+            filter === "GROUPS"
+              ? "bg-[#2C6BED] text-white shadow-xs"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          )}
+        >
+          <span>Groups</span>
+          {groupsCount > 0 && (
+            <span
+              className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                filter === "GROUPS"
+                  ? "bg-white/20 text-white"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+              )}
+            >
+              {groupsCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Conversations List */}
       <ConversationList
         conversations={conversations}
         activeConversationId={activeConversation?.id}
         searchQuery={searchQuery}
+        filter={filter}
         typingMap={typingMap}
         onSelect={(conv) => selectConversation(conv)}
       />

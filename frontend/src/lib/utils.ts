@@ -113,3 +113,21 @@ export function formatDateSeparator(dateString: string): string {
     return dateString;
   }
 }
+
+export function getAttachmentUrl(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+  const backendBase = apiUrl.replace(/\/api\/?$/, "");
+  return `${backendBase}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+export function formatFileSize(bytes?: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+

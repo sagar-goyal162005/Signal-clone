@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Paperclip, Smile, Image as ImageIcon } from "lucide-react";
+import { Send, Paperclip, Smile, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface MessageComposerProps {
   onSendMessage: (content: string, messageType?: string) => void;
@@ -14,8 +15,10 @@ const COMMON_EMOJIS = ["👍", "❤️", "😂", "🎉", "🔥", "🙏", "🔒",
 export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProps) {
   const [content, setContent] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
@@ -33,14 +36,14 @@ export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProp
   };
 
   const handleSend = () => {
-    if (!content.trim()) return;
+    if (!content.trim() || isUploading) return;
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     onTyping(false);
 
-    onSendMessage(content.trim());
+    onSendMessage(content.trim(), "TEXT");
     setContent("");
     setShowEmojiPicker(false);
 
@@ -60,6 +63,60 @@ export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProp
     inputRef.current?.focus();
   };
 
+  const processAndUploadFile = async (file: File) => {
+    if (file.size > 25 * 1024 * 1024) {
+      alert("File is too large. Maximum allowed size is 25MB.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const res = await api.uploadFile(file);
+      const isImage = file.type.startsWith("image/");
+      const payload = JSON.stringify({
+        url: res.url,
+        filename: file.name,
+        size: file.size,
+        content_type: file.type,
+        caption: content.trim() || undefined,
+      });
+
+      onSendMessage(payload, isImage ? "IMAGE" : "FILE");
+      setContent("");
+      setShowEmojiPicker(false);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Failed to upload attachment. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processAndUploadFile(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Support pasting images from clipboard
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          processAndUploadFile(file);
+          break;
+        }
+      }
+    }
+  };
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -71,6 +128,15 @@ export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProp
 
   return (
     <div className="relative px-4 py-2.5 bg-white dark:bg-zinc-900 border-t border-zinc-200/80 dark:border-zinc-800">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handleFileChange}
+        className="hidden"
+        accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv"
+      />
+
       {/* Quick emoji popover */}
       {showEmojiPicker && (
         <div className="absolute bottom-full mb-2 left-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-2 flex items-center gap-1.5 z-20 animate-fade-in">
@@ -90,11 +156,16 @@ export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProp
         {/* Attachment button */}
         <button
           type="button"
-          onClick={() => alert("Simulated file upload: In a production deployment, media is encrypted client-side.")}
-          title="Attach file"
-          className="p-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors flex-shrink-0"
+          disabled={isUploading}
+          onClick={() => fileInputRef.current?.click()}
+          title="Attach image or file"
+          className="p-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors flex-shrink-0 cursor-pointer disabled:opacity-50"
         >
-          <Paperclip className="w-5 h-5" />
+          {isUploading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-[#2C6BED]" />
+          ) : (
+            <Paperclip className="w-5 h-5" />
+          )}
         </button>
 
         {/* Input box */}
@@ -105,7 +176,9 @@ export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProp
             value={content}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
-            placeholder="Signal message"
+            onPaste={handlePaste}
+            placeholder={isUploading ? "Uploading file..." : "Signal message (type or paste images)..."}
+            disabled={isUploading}
             className="flex-1 bg-transparent resize-none outline-none text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 max-h-32 min-h-[24px] py-1"
           />
 
@@ -123,12 +196,12 @@ export function MessageComposer({ onSendMessage, onTyping }: MessageComposerProp
         <button
           type="button"
           onClick={handleSend}
-          disabled={!content.trim()}
+          disabled={!content.trim() || isUploading}
           title="Send message"
           className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0",
-            content.trim()
-              ? "bg-[#2C6BED] text-white hover:bg-blue-600 shadow-sm hover:scale-105 active:scale-95"
+            content.trim() && !isUploading
+              ? "bg-[#2C6BED] text-white hover:bg-blue-600 shadow-sm hover:scale-105 active:scale-95 cursor-pointer"
               : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
           )}
         >

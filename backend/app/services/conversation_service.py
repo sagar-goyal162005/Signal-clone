@@ -11,6 +11,7 @@ from app.models.conversation_member import ConversationMember
 from app.models.message import Message
 from app.models.message_receipt import MessageReceipt
 from app.models.user import User
+from app.services.encryption_service import decrypt_message
 
 
 def get_or_create_direct_conversation(db: Session, user_id: int, other_user_id: int) -> Conversation:
@@ -161,7 +162,7 @@ def get_user_conversations(db: Session, user_id: int) -> List[dict]:
             sender = db.query(User).filter(User.id == last_message.sender_id).first()
             last_msg_data = {
                 "id": last_message.id,
-                "content": last_message.content,
+                "content": decrypt_message(last_message.content) if last_message.content else "",
                 "sender_id": last_message.sender_id,
                 "sender_name": sender.display_name if sender else None,
                 "created_at": last_message.created_at,

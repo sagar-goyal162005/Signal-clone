@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { Message } from "@/types";
-import { formatMessageTime, cn } from "@/lib/utils";
+import { formatMessageTime, cn, getAttachmentUrl, formatFileSize } from "@/lib/utils";
 import { StatusIcon } from "@/components/ui/StatusIcon";
-import { Copy, Edit2, Trash2, Check } from "lucide-react";
+import { Copy, Edit2, Trash2, Check, FileText, Download, ExternalLink } from "lucide-react";
 
 interface MessageBubbleProps {
   message: Message;
@@ -12,6 +12,23 @@ interface MessageBubbleProps {
   showSender?: boolean;
   onEdit?: (messageId: number, content: string) => void;
   onDelete?: (messageId: number) => void;
+}
+
+interface AttachmentData {
+  url: string;
+  filename?: string;
+  size?: number;
+  caption?: string;
+}
+
+function parseAttachment(content: string): AttachmentData {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed && typeof parsed === "object" && parsed.url) {
+      return parsed;
+    }
+  } catch {}
+  return { url: content };
 }
 
 export function MessageBubble({
@@ -56,6 +73,91 @@ export function MessageBubble({
       setIsEditing(false);
       setEditContent(message.content);
     }
+  };
+
+  const renderContent = () => {
+    if (message.message_type === "IMAGE") {
+      const attachment = parseAttachment(message.content);
+      const imgUrl = getAttachmentUrl(attachment.url);
+      return (
+        <div className="flex flex-col gap-1.5">
+          <a
+            href={imgUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block relative rounded-xl overflow-hidden group/img max-w-xs md:max-w-sm"
+          >
+            <img
+              src={imgUrl}
+              alt={attachment.filename || "Image attachment"}
+              className="w-full max-h-72 object-cover rounded-xl transition-transform duration-200 group-hover/img:scale-[1.02]"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+              <ExternalLink className="w-5 h-5" />
+            </div>
+          </a>
+          {attachment.caption && (
+            <p className="whitespace-pre-wrap leading-relaxed text-sm pt-0.5">{attachment.caption}</p>
+          )}
+        </div>
+      );
+    }
+
+    if (message.message_type === "FILE") {
+      const attachment = parseAttachment(message.content);
+      const fileUrl = getAttachmentUrl(attachment.url);
+      return (
+        <div className="flex flex-col gap-1.5 min-w-[220px]">
+          <div
+            className={cn(
+              "flex items-center gap-3 p-2.5 rounded-xl transition-colors",
+              isSelf
+                ? "bg-white/10 hover:bg-white/15"
+                : "bg-zinc-100 dark:bg-zinc-700/60 hover:bg-zinc-200/70 dark:hover:bg-zinc-700"
+            )}
+          >
+            <div
+              className={cn(
+                "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                isSelf ? "bg-white/20 text-white" : "bg-[#2C6BED]/10 text-[#2C6BED] dark:bg-[#2C6BED]/20"
+              )}
+            >
+              <FileText className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0 pr-2">
+              <p className="text-xs font-semibold truncate leading-tight">
+                {attachment.filename || "Attachment"}
+              </p>
+              {attachment.size ? (
+                <p className={cn("text-[10px] mt-0.5", isSelf ? "text-blue-100/70" : "text-zinc-400")}>
+                  {formatFileSize(attachment.size)}
+                </p>
+              ) : null}
+            </div>
+            <a
+              href={fileUrl}
+              download={attachment.filename || "download"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "p-2 rounded-lg transition-transform hover:scale-110 active:scale-95 flex-shrink-0",
+                isSelf ? "text-white hover:bg-white/20" : "text-[#2C6BED] hover:bg-[#2C6BED]/10"
+              )}
+              title="Download file"
+            >
+              <Download className="w-4 h-4" />
+            </a>
+          </div>
+          {attachment.caption && (
+            <p className="whitespace-pre-wrap leading-relaxed text-sm px-1 pt-0.5">{attachment.caption}</p>
+          )}
+        </div>
+      );
+    }
+
+    // Standard TEXT message
+    return <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>;
   };
 
   return (
@@ -108,7 +210,7 @@ export function MessageBubble({
             </div>
           ) : (
             <>
-              <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              {renderContent()}
 
               <div
                 className={cn(

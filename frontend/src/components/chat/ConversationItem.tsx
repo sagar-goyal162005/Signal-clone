@@ -78,7 +78,11 @@ export function ConversationItem({
             ) : conversation.last_message ? (
               <span>
                 {conversation.last_message.sender_id === user?.id && "You: "}
-                {conversation.last_message.content}
+                {conversation.last_message.message_type === "IMAGE"
+                  ? "📷 Photo"
+                  : conversation.last_message.message_type === "FILE"
+                  ? "📎 File"
+                  : conversation.last_message.content}
               </span>
             ) : (
               <span className="italic text-zinc-400">No messages yet</span>

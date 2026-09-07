@@ -103,6 +103,8 @@ export interface WebSocketEvent {
     | "message_updated"
     | "message_deleted"
     | "conversation_created"
+    | "conversation_deleted"
+    | "group_updated"
     | "typing_start"
     | "typing_stop"
     | "message_read"
@@ -111,6 +113,7 @@ export interface WebSocketEvent {
     | "pong"
     | "error";
   conversation_id?: number;
+  group?: any;
   user_id?: number;
   username?: string;
   display_name?: string;

@@ -9,6 +9,7 @@ interface ConversationListProps {
   conversations: Conversation[];
   activeConversationId?: number | null;
   searchQuery: string;
+  filter?: "ALL" | "UNREAD" | "GROUPS";
   typingMap?: Record<number, boolean>;
   onSelect: (conv: Conversation) => void;
 }
@@ -17,10 +18,18 @@ export function ConversationList({
   conversations,
   activeConversationId,
   searchQuery,
+  filter = "ALL",
   typingMap = {},
   onSelect,
 }: ConversationListProps) {
   const filtered = conversations.filter((c) => {
+    if (filter === "UNREAD" && (!c.unread_count || c.unread_count <= 0)) {
+      return false;
+    }
+    if (filter === "GROUPS" && c.type !== "GROUP") {
+      return false;
+    }
+
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -34,12 +43,16 @@ export function ConversationList({
   });
 
   if (filtered.length === 0) {
+    let emptyMsg = "No conversations found";
+    if (filter === "UNREAD") emptyMsg = "No unread messages";
+    else if (filter === "GROUPS") emptyMsg = "No groups yet";
+
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-zinc-400 select-none">
         <MessageSquareDashed className="w-8 h-8 mb-2 opacity-60" />
-        <p className="text-sm">No conversations found</p>
+        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{emptyMsg}</p>
         {searchQuery && (
-          <p className="text-xs text-zinc-500 mt-1">Try searching for someone else</p>
+          <p className="text-xs text-zinc-400 mt-1">Try searching for someone else</p>
         )}
       </div>
     );
