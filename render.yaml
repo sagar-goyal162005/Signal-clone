@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: signal-clone-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python seed.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./cipher_messenger.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: CORS_ORIGINS
+        value: "https://signal-clone.vercel.app"
+      - key: MOCK_OTP
+        value: "123456"
+      - key: PYTHON_VERSION
+        value: "3.12.5"

@@ -144,6 +144,35 @@ Tests verify:
 
 ---
 
+---
+
+## 🌐 Production Deployment
+
+### Backend (Render)
+1. In [Render Dashboard](https://dashboard.render.com), create a **New Blueprint** and connect this repository (Render reads `render.yaml` automatically).
+2. Alternatively, create a **Web Service**:
+   - **Root Directory**: `backend`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python seed.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Environment Variables**:
+     - `PYTHON_VERSION`: `3.12.5`
+     - `DATABASE_URL`: `sqlite:///./cipher_messenger.db`
+     - `JWT_SECRET`: `<secure-random-secret>`
+     - `JWT_ALGORITHM`: `HS256`
+     - `JWT_EXPIRATION_HOURS`: `24`
+     - `MOCK_OTP`: `123456`
+     - `CORS_ORIGINS`: `https://<your-vercel-frontend>.vercel.app,http://localhost:3000`
+
+### Frontend (Vercel)
+1. In [Vercel](https://vercel.com), import the repository.
+2. Set **Root Directory** to `frontend`.
+3. Set **Environment Variables**:
+   - `NEXT_PUBLIC_API_URL`: `https://<your-render-backend>.onrender.com/api`
+   - `NEXT_PUBLIC_WS_URL`: `wss://<your-render-backend>.onrender.com/ws` (Note: use `wss://` for secure WebSockets).
+4. Deploy!
+
+---
+
 ## 📁 Repository Structure
 
 ```
@@ -160,6 +189,7 @@ Signal-clone/
 │   │   ├── dependencies.py  # Auth & DB dependencies
 │   │   └── main.py          # FastAPI application entry point
 │   ├── tests/               # Pytest automated test suite
+│   ├── Procfile             # Process file with auto-seed command
 │   ├── requirements.txt     # Python dependencies
 │   └── seed.py              # Demo database seeder
 ├── frontend/
@@ -169,7 +199,7 @@ Signal-clone/
 │   │   ├── context/         # AuthContext, ChatContext, ThemeContext
 │   │   ├── lib/             # API client, WebSocket client, utils
 │   │   └── types/           # TypeScript type definitions
-│   ├── package.json
-│   └── tailwind.config.js
+│   └── package.json
+├── render.yaml              # Render blueprint specification
 └── README.md
 ```

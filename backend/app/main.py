@@ -44,7 +44,8 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["Settin
 app.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
 app.include_router(ws_router)
 
-# Mount static files for uploads
+import os
+os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
