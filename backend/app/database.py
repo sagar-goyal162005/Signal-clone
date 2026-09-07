@@ -30,9 +30,18 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+from sqlalchemy import text
+
+
 def create_tables():
-    """Create all tables defined in models."""
+    """Create all tables defined in models and ensure migrations."""
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE conversations ADD COLUMN invite_code VARCHAR(64)"))
+            conn.commit()
+        except Exception:
+            pass
 
 
 def get_db():

@@ -174,6 +174,37 @@ def test_groups_and_permissions(client):
     assert group_details.status_code == status.HTTP_200_OK
     assert len(group_details.json()["members"]) == 3
 
+    # Test invite code retrieval
+    invite_res = client.get(f"/api/groups/{group_id}/invite-code", headers=admin_headers)
+    assert invite_res.status_code == status.HTTP_200_OK
+    code = invite_res.json()["invite_code"]
+    assert code is not None
+
+    # Test preview group invite
+    preview_res = client.get(f"/api/groups/preview/{code}")
+    assert preview_res.status_code == status.HTTP_200_OK
+    assert preview_res.json()["name"] == "Engineering Core"
+    assert preview_res.json()["member_count"] == 3
+
+    # Register a 4th user to join via invite code
+    client.post("/api/auth/register", json={"username": "member3", "password": "Pass123!"})
+    v4 = client.post("/api/auth/verify", json={"username": "member3", "otp_code": "123456"})
+    member3_headers = {"Authorization": f"Bearer {v4.json()['access_token']}"}
+
+    # Join group via invite code
+    join_res = client.post(f"/api/groups/join/{code}", headers=member3_headers)
+    assert join_res.status_code == status.HTTP_200_OK
+
+    # Verify group details now have 4 members
+    group_details2 = client.get(f"/api/groups/{group_id}", headers=admin_headers)
+    assert len(group_details2.json()["members"]) == 4
+
+    # Admin resets invite code
+    reset_res = client.post(f"/api/groups/{group_id}/invite-code/reset", headers=admin_headers)
+    assert reset_res.status_code == status.HTTP_200_OK
+    new_code = reset_res.json()["invite_code"]
+    assert new_code != code
+
 
 def test_websocket_realtime(client):
     # Register & verify test user

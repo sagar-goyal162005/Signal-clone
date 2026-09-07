@@ -28,6 +28,7 @@ interface ChatContextType {
   sendTyping: (isTyping: boolean) => void;
   startDirectChat: (recipientId: number) => Promise<Conversation>;
   createGroup: (name: string, memberIds: number[], avatarUrl?: string) => Promise<Conversation>;
+  joinGroup: (inviteCode: string) => Promise<Conversation>;
   refreshConversations: () => Promise<void>;
   markConversationAsRead: (conversationId: number) => Promise<void>;
 }
@@ -275,7 +276,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     // 6. Conversation created in real-time
     unsubs.push(
-      wsClient.on("conversation_created", () => {
+      wsClient.on("conversation_created", (event: any) => {
+        if (event?.conversation) {
+          const newConv = event.conversation;
+          setConversations((prev) => {
+            const exists = prev.some((c) => c.id === newConv.id);
+            if (exists) {
+              return prev.map((c) => (c.id === newConv.id ? newConv : c));
+            }
+            return [newConv, ...prev];
+          });
+        }
         refreshConversations();
       })
     );
@@ -442,6 +453,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return conv;
   };
 
+  const joinGroup = async (inviteCode: string): Promise<Conversation> => {
+    const conv = await api.joinGroupByInvite(inviteCode);
+    await refreshConversations();
+    selectConversation(conv);
+    return conv;
+  };
+
   const activeMessages = activeConversation ? messagesByConv[activeConversation.id] || [] : [];
   const activeTyping = activeConversation ? typingByConv[activeConversation.id] || [] : [];
 
@@ -463,6 +481,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         sendTyping,
         startDirectChat,
         createGroup,
+        joinGroup,
         refreshConversations,
         markConversationAsRead,
       }}

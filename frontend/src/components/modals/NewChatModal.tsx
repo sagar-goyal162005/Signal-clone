@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Contact, User } from "@/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { useChat } from "@/context/ChatContext";
-import { X, Search, Users, UserPlus, Check } from "lucide-react";
+import { X, Search, Users, UserPlus, Check, Link as LinkIcon } from "lucide-react";
 
 interface NewChatModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ export function NewChatModal({
   onClose,
   onOpenCreateGroup,
 }: NewChatModalProps) {
-  const { startDirectChat } = useChat();
+  const { startDirectChat, joinGroup } = useChat();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [searchResults, setSearchResults] = useState<
     { id: number; username: string; display_name?: string | null; avatar_url?: string | null; is_online: boolean }[]
@@ -26,6 +26,10 @@ export function NewChatModal({
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [addingContactId, setAddingContactId] = useState<number | null>(null);
+  const [showJoinInput, setShowJoinInput] = useState(false);
+  const [inviteLinkInput, setInviteLinkInput] = useState("");
+  const [joiningGroup, setJoiningGroup] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -83,6 +87,31 @@ export function NewChatModal({
 
   const contactUserIds = new Set(contacts.map((c) => c.contact_user_id));
 
+  const handleJoinByLink = async () => {
+    const raw = inviteLinkInput.trim();
+    if (!raw) return;
+    setJoiningGroup(true);
+    setJoinError(null);
+
+    // Extract code from URL if full URL is pasted
+    let code = raw;
+    if (raw.includes("/join/")) {
+      const parts = raw.split("/join/");
+      code = parts[parts.length - 1].split("?")[0].split("/")[0];
+    }
+
+    try {
+      await joinGroup(code);
+      setInviteLinkInput("");
+      setShowJoinInput(false);
+      onClose();
+    } catch (err: any) {
+      setJoinError(err.message || "Invalid or expired invite link");
+    } finally {
+      setJoiningGroup(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-fade-in">
@@ -114,20 +143,59 @@ export function NewChatModal({
           </div>
         </div>
 
-        {/* New group action */}
-        <div className="p-2 border-b border-zinc-100 dark:border-zinc-800/60">
+        {/* New group & Join Group actions */}
+        <div className="p-2 border-b border-zinc-100 dark:border-zinc-800/60 space-y-1">
           <button
             onClick={() => {
               onClose();
               onOpenCreateGroup();
             }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left transition-colors text-zinc-900 dark:text-zinc-100 font-medium text-sm"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left transition-colors text-zinc-900 dark:text-zinc-100 font-medium text-sm"
           >
-            <div className="w-10 h-10 rounded-full bg-[#2C6BED]/10 text-[#2C6BED] flex items-center justify-center flex-shrink-0">
-              <Users className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-[#2C6BED]/10 text-[#2C6BED] flex items-center justify-center flex-shrink-0">
+              <Users className="w-4 h-4" />
             </div>
             <span>New Group</span>
           </button>
+
+          <button
+            onClick={() => setShowJoinInput(!showJoinInput)}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left transition-colors text-zinc-900 dark:text-zinc-100 font-medium text-sm"
+          >
+            <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+              <LinkIcon className="w-4 h-4" />
+            </div>
+            <span>Join Group via Invite Link</span>
+          </button>
+
+          {showJoinInput && (
+            <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-xl space-y-2 border border-zinc-200 dark:border-zinc-700">
+              <input
+                type="text"
+                value={inviteLinkInput}
+                onChange={(e) => setInviteLinkInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleJoinByLink()}
+                placeholder="Paste group invite link or code..."
+                className="w-full bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-zinc-100 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowJoinInput(false)}
+                  className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleJoinByLink}
+                  disabled={joiningGroup || !inviteLinkInput.trim()}
+                  className="px-3 py-1 bg-[#2C6BED] hover:bg-blue-600 text-white text-xs font-medium rounded-lg disabled:opacity-50"
+                >
+                  {joiningGroup ? "Joining..." : "Join"}
+                </button>
+              </div>
+              {joinError && <p className="text-[11px] text-rose-500">{joinError}</p>}
+            </div>
+          )}
         </div>
 
         {/* Contacts or search results */}

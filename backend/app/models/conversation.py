@@ -15,6 +15,7 @@ class Conversation(Base):
     type = Column(String(10), nullable=False, default="DIRECT")  # DIRECT or GROUP
     name = Column(String(200), nullable=True)  # Group name; null for direct chats
     avatar_url = Column(String(500), nullable=True)
+    invite_code = Column(String(64), unique=True, index=True, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

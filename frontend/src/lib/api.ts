@@ -212,10 +212,39 @@ export const api = {
       member_count: number;
     }>(`/groups/${groupId}`),
 
-  addGroupMember: (groupId: number, userId: number) =>
-    request<{ message: string }>(`/groups/${groupId}/members`, {
+  addGroupMember: (groupId: number, data: { user_id?: number; username?: string }) =>
+    request<{
+      user_id: number;
+      username: string;
+      display_name?: string | null;
+      avatar_url?: string | null;
+      is_online: boolean;
+      role: "MEMBER";
+    }>(`/groups/${groupId}/members`, {
       method: "POST",
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify(data),
+    }),
+
+  getGroupInviteCode: (groupId: number) =>
+    request<{ invite_code: string; invite_url: string }>(`/groups/${groupId}/invite-code`),
+
+  resetGroupInviteCode: (groupId: number) =>
+    request<{ invite_code: string; invite_url: string }>(`/groups/${groupId}/invite-code/reset`, {
+      method: "POST",
+    }),
+
+  getGroupPreview: (inviteCode: string) =>
+    request<{
+      id: number;
+      name: string;
+      avatar_url?: string | null;
+      member_count: number;
+      created_at?: string;
+    }>(`/groups/preview/${inviteCode}`),
+
+  joinGroupByInvite: (inviteCode: string) =>
+    request<Conversation>(`/groups/join/${inviteCode}`, {
+      method: "POST",
     }),
 
   removeGroupMember: (groupId: number, userId: number) =>

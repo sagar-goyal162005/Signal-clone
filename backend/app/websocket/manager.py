@@ -3,6 +3,7 @@ WebSocket connection manager and endpoint routing.
 Tracks active connections and delivers real-time events to users and conversations.
 """
 import logging
+import json
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
@@ -51,10 +52,16 @@ class ConnectionManager:
     async def send_personal_message(self, data: dict, user_id: int):
         """Send a message directly to all active connections of a specific user."""
         if user_id in self.active_connections:
+            try:
+                payload = json.dumps(data, default=str)
+            except Exception as e:
+                logger.error(f"Failed to serialize WebSocket event for user {user_id}: {e}")
+                return
+
             dead_connections = []
             for connection in self.active_connections[user_id]:
                 try:
-                    await connection.send_json(data)
+                    await connection.send_text(payload)
                 except Exception as e:
                     logger.error(f"Error sending message to user {user_id}: {e}")
                     dead_connections.append(connection)

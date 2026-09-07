@@ -51,6 +51,8 @@ def get_or_create_direct_conversation(db: Session, user_id: int, other_user_id: 
     return conversation
 
 
+import secrets
+
 def create_group_conversation(
     db: Session, creator_id: int, name: str, member_ids: List[int], avatar_url: Optional[str] = None
 ) -> Conversation:
@@ -59,6 +61,7 @@ def create_group_conversation(
         type="GROUP",
         name=name,
         avatar_url=avatar_url,
+        invite_code=secrets.token_urlsafe(16),
         created_by=creator_id,
     )
     db.add(conversation)
@@ -230,16 +233,36 @@ def get_conversation_by_id(db: Session, conversation_id: int, user_id: int) -> O
             other = other_members[0]
             display_name = other.get("display_name") or other.get("username")
 
+    last_message = (
+        db.query(Message)
+        .filter(Message.conversation_id == conv.id, Message.deleted_at == None)
+        .order_by(desc(Message.created_at))
+        .first()
+    )
+
+    last_msg_data = None
+    if last_message:
+        sender = db.query(User).filter(User.id == last_message.sender_id).first()
+        last_msg_data = {
+            "id": last_message.id,
+            "content": decrypt_message(last_message.content) if last_message.content else "",
+            "sender_id": last_message.sender_id,
+            "sender_name": sender.display_name if sender else None,
+            "created_at": last_message.created_at.isoformat() if last_message.created_at else None,
+            "message_type": last_message.message_type,
+        }
+
     return {
         "id": conv.id,
         "type": conv.type,
         "name": display_name,
         "avatar_url": conv.avatar_url,
+        "invite_code": conv.invite_code,
         "created_by": conv.created_by,
-        "created_at": conv.created_at,
-        "updated_at": conv.updated_at,
+        "created_at": conv.created_at.isoformat() if conv.created_at else None,
+        "updated_at": conv.updated_at.isoformat() if conv.updated_at else None,
         "members": members,
-        "last_message": None,
+        "last_message": last_msg_data,
         "unread_count": 0,
     }
 
