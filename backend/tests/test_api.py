@@ -15,7 +15,7 @@ def test_auth_full_flow(client):
     # 1. Register user
     reg_res = client.post(
         "/api/auth/register",
-        json={"username": "alice", "password": "Password123!", "phone": "+1234567890"},
+        json={"username": "alice", "password": "Pass123!", "phone": "+1234567890"},
     )
     assert reg_res.status_code == status.HTTP_201_CREATED
     assert "otp_code" in reg_res.json()
@@ -34,7 +34,7 @@ def test_auth_full_flow(client):
     # 3. Login with password
     login_res = client.post(
         "/api/auth/login",
-        json={"username": "alice", "password": "Password123!"},
+        json={"username": "alice", "password": "Pass123!"},
     )
     assert login_res.status_code == status.HTTP_200_OK
     assert "access_token" in login_res.json()
@@ -57,13 +57,13 @@ def test_auth_full_flow(client):
 
 def test_contacts_and_conversations(client):
     # Register & verify Alice
-    client.post("/api/auth/register", json={"username": "user1", "password": "Password123!"})
+    client.post("/api/auth/register", json={"username": "user1", "password": "Pass123!"})
     res1 = client.post("/api/auth/verify", json={"username": "user1", "otp_code": "123456"})
     token1 = res1.json()["access_token"]
     headers1 = {"Authorization": f"Bearer {token1}"}
 
     # Register & verify Bob
-    client.post("/api/auth/register", json={"username": "user2", "password": "Password123!"})
+    client.post("/api/auth/register", json={"username": "user2", "password": "Pass123!"})
     res2 = client.post("/api/auth/verify", json={"username": "user2", "otp_code": "123456"})
     token2 = res2.json()["access_token"]
     headers2 = {"Authorization": f"Bearer {token2}"}
@@ -135,7 +135,7 @@ def test_groups_and_permissions(client):
     tokens = []
     user_ids = []
     for uname in ["admin_u", "member1", "member2"]:
-        client.post("/api/auth/register", json={"username": uname, "password": "Password123!"})
+        client.post("/api/auth/register", json={"username": uname, "password": "Pass123!"})
         v = client.post("/api/auth/verify", json={"username": uname, "otp_code": "123456"})
         tokens.append(v.json()["access_token"])
         me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {v.json()['access_token']}"})
@@ -177,7 +177,7 @@ def test_groups_and_permissions(client):
 
 def test_websocket_realtime(client):
     # Register & verify test user
-    client.post("/api/auth/register", json={"username": "ws_user", "password": "Password123!"})
+    client.post("/api/auth/register", json={"username": "ws_user", "password": "Pass123!"})
     v = client.post("/api/auth/verify", json={"username": "ws_user", "otp_code": "123456"})
     token = v.json()["access_token"]
     user_id = v.json()["user_id"]
@@ -188,3 +188,60 @@ def test_websocket_realtime(client):
         websocket.send_json({"type": "ping"})
         response = websocket.receive_json()
         assert response["type"] == "pong"
+
+
+def test_settings_and_password_validation(client):
+    # Register & verify test user
+    reg = client.post("/api/auth/register", json={"username": "settings_user", "password": "Pass123!"})
+    assert reg.status_code == status.HTTP_201_CREATED
+
+    # Try invalid passwords during register
+    # 1. Too long (>8 chars)
+    bad_res1 = client.post("/api/auth/register", json={"username": "user_long", "password": "Password123!"})
+    assert bad_res1.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    # 2. No special character
+    bad_res2 = client.post("/api/auth/register", json={"username": "user_nospec", "password": "Password1"})
+    assert bad_res2.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    # Verify settings_user
+    v = client.post("/api/auth/verify", json={"username": "settings_user", "otp_code": "123456"})
+    token = v.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Get settings default
+    get_res = client.get("/api/settings", headers=headers)
+    assert get_res.status_code == status.HTTP_200_OK
+    data = get_res.json()
+    assert data["read_receipts"] is True
+    assert data["screen_security"] is True
+    assert data["disappearing_messages_timer"] == "off"
+
+    # 2. Update settings
+    put_res = client.put(
+        "/api/settings",
+        json={"read_receipts": False, "disappearing_messages_timer": "1_day", "incognito_keyboard": True},
+        headers=headers,
+    )
+    assert put_res.status_code == status.HTTP_200_OK
+    updated = put_res.json()
+    assert updated["read_receipts"] is False
+    assert updated["disappearing_messages_timer"] == "1_day"
+    assert updated["incognito_keyboard"] is True
+
+    # 3. Change password successfully (max 8 chars strong)
+    chg_res = client.post(
+        "/api/settings/change-password",
+        json={"current_password": "Pass123!", "new_password": "New456@"},
+        headers=headers,
+    )
+    assert chg_res.status_code == status.HTTP_200_OK
+
+    # 4. Try changing with bad password (>8 chars)
+    chg_bad = client.post(
+        "/api/settings/change-password",
+        json={"current_password": "New456@", "new_password": "TooLongPassword1!"},
+        headers=headers,
+    )
+    assert chg_bad.status_code == status.HTTP_400_BAD_REQUEST
+

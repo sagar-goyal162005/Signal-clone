@@ -1,5 +1,5 @@
 """
-Models package — re-exports all SQLAlchemy models for convenient imports.
+Models package — import all models so SQLAlchemy creates tables automatically.
 """
 from app.models.user import User
 from app.models.contact import Contact
@@ -7,12 +7,4 @@ from app.models.conversation import Conversation
 from app.models.conversation_member import ConversationMember
 from app.models.message import Message
 from app.models.message_receipt import MessageReceipt
-
-__all__ = [
-    "User",
-    "Contact",
-    "Conversation",
-    "ConversationMember",
-    "Message",
-    "MessageReceipt",
-]
+from app.models.user_settings import UserSettings

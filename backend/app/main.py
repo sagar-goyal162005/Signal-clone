@@ -11,9 +11,11 @@ A secure messaging platform API providing:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
+
 from app.config import settings
 from app.database import create_tables
-from app.routers import auth, users, contacts, conversations, messages, groups, settings as settings_router
+from app.routers import auth, users, contacts, conversations, messages, groups, settings as settings_router, upload
 from app.websocket.manager import router as ws_router
 
 app = FastAPI(
@@ -39,7 +41,11 @@ app.include_router(conversations.router, prefix="/api/conversations", tags=["Con
 app.include_router(messages.router, prefix="/api", tags=["Messages"])
 app.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
 app.include_router(settings_router.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
 app.include_router(ws_router)
+
+# Mount static files for uploads
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.on_event("startup")

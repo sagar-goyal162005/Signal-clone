@@ -101,7 +101,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                Password
+                Password <span className="font-normal text-zinc-400">(max 8 characters, must be strong)</span>
               </label>
               <div className="relative flex items-center">
                 <Lock className="w-4 h-4 text-zinc-400 absolute left-3.5" />
@@ -109,11 +109,44 @@ export default function RegisterPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="e.g. Ab1@defg"
                   required
+                  maxLength={8}
                   className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 outline-none focus:border-[#2C6BED] focus:ring-2 focus:ring-[#2C6BED]/20 transition-all"
                 />
               </div>
+              {/* Password strength indicator */}
+              {password.length > 0 && (() => {
+                const errors: string[] = [];
+                if (password.length < 4) errors.push("Min 4 characters");
+                if (!/[A-Z]/.test(password)) errors.push("Need uppercase letter");
+                if (!/[a-z]/.test(password)) errors.push("Need lowercase letter");
+                if (!/[0-9]/.test(password)) errors.push("Need a digit");
+                if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'/~`]/.test(password)) errors.push("Need special character");
+                const score = Math.max(0, 5 - errors.length);
+                const label = score <= 2 ? "Weak" : score <= 3 ? "Fair" : "Strong";
+                const color = score <= 2 ? "bg-red-500" : score <= 3 ? "bg-amber-500" : "bg-emerald-500";
+                const textColor = score <= 2 ? "text-red-500" : score <= 3 ? "text-amber-500" : "text-emerald-500";
+                return (
+                  <div className="mt-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${(score / 5) * 100}%` }} />
+                      </div>
+                      <span className={`text-[10px] font-semibold ${textColor}`}>{label}</span>
+                    </div>
+                    {errors.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {errors.map((err, i) => (
+                          <li key={i} className="text-[10px] text-rose-500 flex items-center gap-1">
+                            <span>•</span>{err}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div>

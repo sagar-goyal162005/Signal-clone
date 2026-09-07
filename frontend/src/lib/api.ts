@@ -222,4 +222,71 @@ export const api = {
     request<{ message: string }>(`/groups/${groupId}/members/${userId}`, {
       method: "DELETE",
     }),
+
+  // Upload
+  uploadFile: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Upload failed");
+    }
+
+    return response.json() as Promise<{
+      url: string;
+      filename: string;
+      content_type: string;
+    }>;
+  },
+
+  // Settings
+  getSettings: () =>
+    request<{
+      read_receipts: boolean;
+      typing_indicators: boolean;
+      link_previews: boolean;
+      screen_security: boolean;
+      incognito_keyboard: boolean;
+      registration_lock: boolean;
+      disappearing_messages_timer: string;
+      notifications_enabled: boolean;
+      notification_sound: boolean;
+      notification_previews: boolean;
+    }>("/settings"),
+
+  updateSettings: (data: Record<string, boolean | string>) =>
+    request<{
+      read_receipts: boolean;
+      typing_indicators: boolean;
+      link_previews: boolean;
+      screen_security: boolean;
+      incognito_keyboard: boolean;
+      registration_lock: boolean;
+      disappearing_messages_timer: string;
+      notifications_enabled: boolean;
+      notification_sound: boolean;
+      notification_previews: boolean;
+    }>("/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    request<{ message: string }>("/settings/change-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
+
