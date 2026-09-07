@@ -55,6 +55,16 @@ def on_startup():
     create_tables()
 
 
+@app.get("/")
+def root():
+    return {
+        "service": "Cipher Messenger API",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "service": "cipher-messenger"}
