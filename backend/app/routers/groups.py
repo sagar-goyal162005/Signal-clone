@@ -80,7 +80,7 @@ async def create_group(
             },
         )
 
-    return get_group_details(db, conv.id, current_user.id)
+    return get_conversation_by_id(db, conv.id, current_user.id)
 
 
 @router.get("/preview/{invite_code}", response_model=GroupPreviewResponse)

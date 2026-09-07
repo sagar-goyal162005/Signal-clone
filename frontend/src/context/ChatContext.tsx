@@ -443,18 +443,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     memberIds: number[],
     avatarUrl?: string
   ): Promise<Conversation> => {
-    const conv = await api.createGroupConversation({
+    const rawConv = await api.createGroupConversation({
       name,
       member_ids: memberIds,
       avatar_url: avatarUrl,
     });
+    const conv: Conversation = {
+      ...rawConv,
+      type: "GROUP",
+      name: rawConv.name || name,
+    };
     await refreshConversations();
     selectConversation(conv);
     return conv;
   };
 
   const joinGroup = async (inviteCode: string): Promise<Conversation> => {
-    const conv = await api.joinGroupByInvite(inviteCode);
+    const rawConv = await api.joinGroupByInvite(inviteCode);
+    const conv: Conversation = {
+      ...rawConv,
+      type: "GROUP",
+    };
     await refreshConversations();
     selectConversation(conv);
     return conv;

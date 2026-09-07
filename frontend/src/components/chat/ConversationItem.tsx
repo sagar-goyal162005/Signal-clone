@@ -21,7 +21,7 @@ export function ConversationItem({
 }: ConversationItemProps) {
   const { user } = useAuth();
 
-  const isGroup = conversation.type === "GROUP";
+  const isGroup = conversation.type === "GROUP" || (Boolean(conversation.name) && conversation.type !== "DIRECT");
 
   // If direct chat, find the other participant
   const otherMember = !isGroup

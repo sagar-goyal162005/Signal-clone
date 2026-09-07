@@ -46,6 +46,7 @@ def get_group_details(db: Session, group_id: int, user_id: int) -> Optional[dict
 
     return {
         "id": conv.id,
+        "type": "GROUP",
         "name": conv.name,
         "avatar_url": conv.avatar_url,
         "invite_code": conv.invite_code,
